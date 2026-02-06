@@ -1,0 +1,79 @@
+#!/bin/bash
+#
+# Multi-Agent Framework v2 - ロール一覧表示
+#
+# 使い方:
+#   ma-roles           フレームワークの全ロール一覧
+#   ma-roles --project プロジェクトで有効なロールのみ
+#
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+MA_FRAMEWORK_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+source "$SCRIPT_DIR/lib/common.sh"
+
+ROLES_DIR="$MA_FRAMEWORK_DIR/roles"
+
+show_all_roles() {
+    echo ""
+    echo "Multi-Agent Framework v2 - ロール一覧"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    printf "%-14s %-20s %-18s %s\n" "ロール" "キャラクター" "subagent_type" "ツール制限"
+    printf "%-14s %-20s %-18s %s\n" "──────────" "────────────────" "──────────────" "──────────"
+    printf "%-14s %-20s %-18s %s\n" "secretary"  "草薙素子（少佐）"    "general-purpose" "フルアクセス"
+    printf "%-14s %-20s %-18s %s\n" "manager"    "バトー"             "general-purpose" "フルアクセス"
+    printf "%-14s %-20s %-18s %s\n" "developer"  "タチコマ"           "general-purpose" "フルアクセス"
+    printf "%-14s %-20s %-18s %s\n" "tester"     "タチコマ（慎重型）"  "general-purpose" "フルアクセス"
+    printf "%-14s %-20s %-18s %s\n" "designer"   "タチコマ（美意識型）" "Explore"        "Read-only"
+    printf "%-14s %-20s %-18s %s\n" "researcher" "タチコマ（分析型）"  "Explore"        "Read-only"
+
+    echo ""
+    echo "テンプレート: $ROLES_DIR/"
+    echo ""
+}
+
+show_project_roles() {
+    check_project_dir
+
+    echo ""
+    echo "プロジェクト: $(basename "$PROJECT_ROOT")"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    local roles
+    roles=$(get_enabled_roles "$CONFIG_FILE")
+
+    if [[ -z "$roles" ]]; then
+        log_warn "有効なロールがありません。"
+        log_info ".multi-agent/config.yaml を確認してください。"
+        return
+    fi
+
+    for role in $roles; do
+        local agent_file="$PROJECT_ROOT/.claude/agents/${role}.md"
+        if [[ -f "$agent_file" ]]; then
+            echo "  ✅ $role  →  .claude/agents/${role}.md"
+        else
+            echo "  ⚠️  $role  →  エージェントファイルなし"
+        fi
+    done
+    echo ""
+}
+
+case "${1:-}" in
+    --project|-p)
+        show_project_roles
+        ;;
+    --help|-h)
+        echo "使い方: ma-roles [--project]"
+        echo "  (なし)      フレームワークの全ロール一覧"
+        echo "  --project   プロジェクトで有効なロールのみ"
+        ;;
+    *)
+        show_all_roles
+        ;;
+esac

@@ -1,0 +1,95 @@
+#!/bin/bash
+#
+# Multi-Agent Framework v2 - メインCLIディスパッチャ
+#
+# 使い方:
+#   ma init [project-dir]    プロジェクトを初期化
+#   ma session [project-dir] セッションを開始
+#   ma roles                 利用可能なロール一覧
+#   ma status                プロジェクトの状態確認
+#   ma help                  ヘルプ表示
+#
+
+set -euo pipefail
+
+# スクリプトのディレクトリを取得
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+MA_FRAMEWORK_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+source "$SCRIPT_DIR/lib/common.sh"
+
+show_help() {
+    cat <<'EOF'
+Multi-Agent Framework v2
+
+使い方:
+  ma init [project-dir]     プロジェクトを初期化
+  ma session [project-dir]  セッションを開始
+  ma roles                  利用可能なロール一覧
+  ma status                 プロジェクトの状態確認
+  ma help                   このヘルプを表示
+
+例:
+  ma init ~/dev/my-project   # プロジェクトにマルチエージェント環境を構築
+  ma session                 # カレントディレクトリでセッション開始
+  ma roles                   # 使えるロール一覧を表示
+
+詳細: https://github.com/kmurata/multi-agent
+EOF
+}
+
+# コマンドディスパッチ
+command="${1:-help}"
+shift 2>/dev/null || true
+
+case "$command" in
+    init)
+        exec "$SCRIPT_DIR/ma-init" "$@"
+        ;;
+    session)
+        exec "$SCRIPT_DIR/ma-session" "$@"
+        ;;
+    roles)
+        exec "$SCRIPT_DIR/ma-roles" "$@"
+        ;;
+    status)
+        # プロジェクトルートを検出
+        check_project_dir
+        log_info "プロジェクト: $PROJECT_ROOT"
+        echo ""
+
+        # 有効ロール
+        echo "有効なロール:"
+        get_enabled_roles "$CONFIG_FILE" | while read -r role; do
+            echo "  - $role"
+        done
+        echo ""
+
+        # エージェントファイルの存在確認
+        echo "エージェントファイル:"
+        for f in "$PROJECT_ROOT"/.claude/agents/*.md; do
+            if [[ -f "$f" ]]; then
+                echo "  ✅ $(basename "$f")"
+            fi
+        done
+
+        # ファイルが1つもない場合
+        if ! ls "$PROJECT_ROOT"/.claude/agents/*.md &>/dev/null; then
+            echo "  ⚠️  エージェントファイルなし（ma init を実行してください）"
+        fi
+        echo ""
+
+        # config情報
+        local_mode=$(yaml_value "$CONFIG_FILE" "mode")
+        echo "モード: ${local_mode:-teams}"
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        log_error "不明なコマンド: $command"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac

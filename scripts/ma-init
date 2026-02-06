@@ -1,0 +1,207 @@
+#!/bin/bash
+#
+# Multi-Agent Framework v2 - プロジェクト初期化
+#
+# 使い方:
+#   ma-init [project-dir]
+#
+# 生成されるファイル:
+#   <project>/
+#   ├── .claude/
+#   │   ├── agents/           ← ロール別エージェントファイル
+#   │   └── hooks/
+#   │       └── compact-recovery.sh
+#   ├── .multi-agent/
+#   │   ├── config.yaml
+#   │   └── knowledge/
+#   │       ├── domain.md
+#   │       └── learnings.md
+#   └── CLAUDE.md             ← マルチエージェントセクション追記
+#
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+MA_FRAMEWORK_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/lib/render.sh"
+
+# 引数からプロジェクトディレクトリを取得
+PROJECT_DIR="${1:-$PWD}"
+PROJECT_DIR="$(cd "$PROJECT_DIR" && pwd)"
+PROJECT_NAME="$(basename "$PROJECT_DIR")"
+
+echo ""
+echo "╔══════════════════════════════════════════════╗"
+echo "║  Multi-Agent Framework v2 - Project Init     ║"
+echo "╚══════════════════════════════════════════════╝"
+echo ""
+log_info "プロジェクト: $PROJECT_NAME"
+log_info "ディレクトリ: $PROJECT_DIR"
+echo ""
+
+# 既存プロジェクトの確認
+if [[ -f "$PROJECT_DIR/.multi-agent/config.yaml" ]]; then
+    log_warn "既にマルチエージェント環境が存在します。"
+    read -p "上書きしますか？ (y/N): " confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        log_info "中止しました。"
+        exit 0
+    fi
+fi
+
+# ==============================
+# Step 1: ディレクトリ構造の作成
+# ==============================
+log_info "Step 1: ディレクトリ構造を作成..."
+
+mkdir -p "$PROJECT_DIR/.multi-agent/knowledge"
+mkdir -p "$PROJECT_DIR/.claude/agents"
+mkdir -p "$PROJECT_DIR/.claude/hooks"
+
+log_success "ディレクトリ作成完了"
+
+# ==============================
+# Step 2: config.yaml の生成
+# ==============================
+log_info "Step 2: config.yaml を生成..."
+
+CONFIG_FILE="$PROJECT_DIR/.multi-agent/config.yaml"
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    sed "s|{{PROJECT_NAME}}|${PROJECT_NAME}|g; s|{{PROJECT_ROOT}}|${PROJECT_DIR}|g" \
+        "$MA_FRAMEWORK_DIR/templates/project-config.yaml" > "$CONFIG_FILE"
+    log_success "config.yaml 生成完了"
+else
+    log_warn "config.yaml は既に存在（スキップ）"
+fi
+
+# ==============================
+# Step 3: knowledge ファイルの生成
+# ==============================
+log_info "Step 3: knowledge ファイルを生成..."
+
+DOMAIN_FILE="$PROJECT_DIR/.multi-agent/knowledge/domain.md"
+if [[ ! -f "$DOMAIN_FILE" ]]; then
+    cat > "$DOMAIN_FILE" <<EOF
+# ${PROJECT_NAME} ドメイン知識
+
+## プロジェクト概要
+<!-- プロジェクトの説明を記載 -->
+
+## 技術スタック
+<!-- 使用している技術を記載 -->
+
+## ディレクトリ構造
+<!-- 重要なディレクトリの説明 -->
+
+## コーディング規約
+<!-- プロジェクト固有のルール -->
+
+## 用語集
+<!-- ドメイン固有の用語 -->
+EOF
+    log_success "domain.md 生成完了"
+else
+    log_warn "domain.md は既に存在（スキップ）"
+fi
+
+LEARNINGS_FILE="$PROJECT_DIR/.multi-agent/knowledge/learnings.md"
+if [[ ! -f "$LEARNINGS_FILE" ]]; then
+    cat > "$LEARNINGS_FILE" <<EOF
+# ${PROJECT_NAME} 蓄積学習
+
+## 作業ログ
+<!-- セッション終了時にバトーが追記 -->
+<!-- フォーマット: ### YYYY-MM-DD セッション概要 -->
+
+## 実装パターン
+<!-- プロジェクトで確立されたパターン -->
+<!-- 例: - **フィルタ機能**: NewspaperFilterDialog パターン（ダイアログ + フィルタロジック分離） -->
+
+## 発見した課題・解決策
+<!-- 例: - **Dialog position:fixed問題**: 親にtransformがあるとfixed効かない → createPortalで解決 -->
+
+## スキル化候補
+<!-- 2回以上繰り返したパターンをここに記録 -->
+<!-- 例: - [ ] フィルタ機能セットアップ（出現: 2回）→ スキル化提案済み -->
+
+## 作成済みスキル
+<!-- スキル化完了したもの -->
+<!-- 例: - [x] /filter-setup → .claude/skills/filter-setup.md -->
+EOF
+    log_success "learnings.md 生成完了"
+else
+    log_warn "learnings.md は既に存在（スキップ）"
+fi
+
+# ==============================
+# Step 4: エージェントファイルの生成
+# ==============================
+log_info "Step 4: エージェントファイルを生成..."
+
+render_all_agents "$PROJECT_DIR"
+
+# ==============================
+# Step 5: compact-recovery フックの設置
+# ==============================
+log_info "Step 5: compact-recovery フックを設置..."
+
+HOOK_FILE="$PROJECT_DIR/.claude/hooks/compact-recovery.sh"
+cp "$MA_FRAMEWORK_DIR/templates/hooks/compact-recovery.sh" "$HOOK_FILE"
+chmod +x "$HOOK_FILE"
+log_success "compact-recovery.sh 設置完了"
+
+# ==============================
+# Step 6: CLAUDE.md にマルチエージェントセクションを追記
+# ==============================
+log_info "Step 6: CLAUDE.md を更新..."
+
+CLAUDE_MD="$PROJECT_DIR/CLAUDE.md"
+SNIPPET_FILE="$MA_FRAMEWORK_DIR/templates/claude-md-snippet.md"
+
+if [[ -f "$CLAUDE_MD" ]]; then
+    # 既存のマルチエージェントセクションがあるか確認
+    if grep -q "## Multi-Agent Framework" "$CLAUDE_MD" 2>/dev/null; then
+        log_warn "CLAUDE.md に既にマルチエージェントセクションが存在（スキップ）"
+    else
+        echo "" >> "$CLAUDE_MD"
+        cat "$SNIPPET_FILE" >> "$CLAUDE_MD"
+        log_success "CLAUDE.md にマルチエージェントセクションを追記"
+    fi
+else
+    cat > "$CLAUDE_MD" <<EOF
+# ${PROJECT_NAME}
+EOF
+    cat "$SNIPPET_FILE" >> "$CLAUDE_MD"
+    log_success "CLAUDE.md を新規作成"
+fi
+
+# ==============================
+# 完了
+# ==============================
+echo ""
+echo "╔══════════════════════════════════════════════╗"
+echo "║  ✅ 初期化完了！                              ║"
+echo "╚══════════════════════════════════════════════╝"
+echo ""
+echo "生成されたファイル:"
+echo ""
+
+# 生成ファイル一覧
+find "$PROJECT_DIR/.multi-agent" -type f | sort | while read -r f; do
+    echo "  📄 ${f#$PROJECT_DIR/}"
+done
+find "$PROJECT_DIR/.claude/agents" -type f -name "*.md" | sort | while read -r f; do
+    echo "  🤖 ${f#$PROJECT_DIR/}"
+done
+if [[ -f "$HOOK_FILE" ]]; then
+    echo "  🔧 .claude/hooks/compact-recovery.sh"
+fi
+
+echo ""
+echo "次のステップ:"
+echo "  1. .multi-agent/config.yaml を編集してロール・設定をカスタマイズ"
+echo "  2. .multi-agent/knowledge/domain.md にプロジェクトの知識を記載"
+echo "  3. 'ma session' でセッションを開始"
+echo ""

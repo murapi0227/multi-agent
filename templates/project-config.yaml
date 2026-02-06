@@ -1,0 +1,65 @@
+# Multi-Agent Framework v2 プロジェクト設定
+# `ma init` で .multi-agent/config.yaml にコピーされる
+
+# プロジェクト情報
+project:
+  name: "{{PROJECT_NAME}}"
+  root: "{{PROJECT_ROOT}}"
+
+# 動作モード
+# teams: Claude Agent Teams (TeamCreate/SendMessage/TaskTools) を使用
+# tmux: 従来のtmux + ファイルベース通信を使用
+mode: teams
+
+# リードロール（ma session で Claude Code に注入されるロール）
+# secretary: 少佐が直接対話（要件定義重視）
+# manager: バトーが直接対話（タスク管理・実装重視）
+lead_role: manager
+
+# 有効なロール
+# コメントアウトで無効化可能
+roles:
+  secretary:
+    enabled: false  # managerが要件整理・ドキュメント化も担当
+    subagent_type: general-purpose
+  manager:
+    enabled: true
+    subagent_type: general-purpose
+  developer:
+    enabled: true
+    subagent_type: general-purpose
+    instances: 2  # dev1, dev2
+  tester:
+    enabled: true
+    subagent_type: general-purpose
+  designer:
+    enabled: true
+    subagent_type: Explore  # Read-only
+  researcher:
+    enabled: false
+    subagent_type: Explore  # Read-only
+
+# キャラクター設定
+# デフォルトは攻殻機動隊S.A.Cテーマ
+# カスタマイズする場合は各ロールの character セクションをオーバーライド
+characters:
+  theme: "ghost-in-the-shell-sac"  # デフォルトテーマ
+  # カスタムキャラクター例:
+  # secretary:
+  #   name: "カスタム名"
+  #   personality: "カスタム性格"
+  #   speech_style: "カスタム口調"
+
+# ドメイン知識
+knowledge:
+  domain: ".multi-agent/knowledge/domain.md"
+  learnings: ".multi-agent/knowledge/learnings.md"
+
+# プロジェクト固有ルール（ロールテンプレートの {{PROJECT_SPECIFIC_RULES}} に注入）
+project_rules: |
+  - プロジェクト固有のルールをここに記載
+
+# tmuxモード設定（mode: tmux の場合のみ使用）
+tmux:
+  session_name: "multi-agent"
+  setup_script: "~/dev/multi-agent/scripts/setup.sh"
