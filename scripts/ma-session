@@ -106,7 +106,11 @@ LAUNCHER_EOF
             case "$choice" in
                 1)
                     log_info "既存セッションにアタッチします..."
-                    exec tmux attach -t "$SESSION_NAME"
+                    if [[ -n "${TMUX:-}" ]]; then
+                        exec tmux switch-client -t "$SESSION_NAME"
+                    else
+                        exec tmux attach -t "$SESSION_NAME"
+                    fi
                     ;;
                 2)
                     log_info "既存セッションを終了します..."
@@ -132,7 +136,13 @@ LAUNCHER_EOF
         echo ""
 
         # tmux session を作成してアタッチ
-        exec tmux new-session -s "$SESSION_NAME" -c "$PROJECT_ROOT" "$LAUNCHER"
+        if [[ -n "${TMUX:-}" ]]; then
+            # 既にtmux内にいる場合: デタッチ状態で作成してからスイッチ
+            tmux new-session -d -s "$SESSION_NAME" -c "$PROJECT_ROOT" "$LAUNCHER"
+            exec tmux switch-client -t "$SESSION_NAME"
+        else
+            exec tmux new-session -s "$SESSION_NAME" -c "$PROJECT_ROOT" "$LAUNCHER"
+        fi
         ;;
 
     tmux)
