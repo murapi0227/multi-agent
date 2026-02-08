@@ -115,6 +115,34 @@ is_role_enabled() {
     [[ "$enabled" == "true" ]]
 }
 
+# ロールのモデルを取得
+get_role_model() {
+    local role="$1"
+    local config_file="$2"
+    local model
+    model=$(awk '
+        /^[[:space:]]*'"$role"':/ { found=1; next }
+        found && /model:/ { print $2; exit }
+        found && /^[^ ]/ { exit }
+        found && /^  [a-zA-Z]/ { exit }
+    ' "$config_file")
+    echo "${model:-sonnet}"
+}
+
+# ロールのプラグインを取得
+get_role_plugins() {
+    local role="$1"
+    local config_file="$2"
+    local plugins
+    plugins=$(awk '
+        /^[[:space:]]*'"$role"':/ { found=1; next }
+        found && /plugins:/ { print $2; exit }
+        found && /^[^ ]/ { exit }
+        found && /^  [a-zA-Z]/ { exit }
+    ' "$config_file")
+    echo "$plugins"
+}
+
 # 有効なロール一覧を取得
 get_enabled_roles() {
     local config_file="$1"

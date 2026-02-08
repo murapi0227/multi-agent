@@ -22,22 +22,29 @@ roles:
   secretary:
     enabled: false  # managerが要件整理・ドキュメント化も担当
     subagent_type: general-purpose
+    model: sonnet
   manager:
     enabled: true
     subagent_type: general-purpose
+    model: opus
   developer:
     enabled: true
     subagent_type: general-purpose
+    model: sonnet
     instances: 2  # dev1, dev2
   tester:
     enabled: true
     subagent_type: general-purpose
+    model: sonnet
   designer:
     enabled: true
-    subagent_type: Explore  # Read-only
+    subagent_type: general-purpose
+    model: opus
+    plugins: frontend-design
   researcher:
     enabled: false
     subagent_type: Explore  # Read-only
+    model: sonnet
 
 # キャラクター設定
 # デフォルトは攻殻機動隊S.A.Cテーマ

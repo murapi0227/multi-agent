@@ -23,7 +23,7 @@ replace_placeholder() {
 get_subagent_type() {
     local role="$1"
     case "$role" in
-        designer|researcher)
+        researcher)
             echo "Explore"
             ;;
         *)
@@ -36,7 +36,7 @@ get_subagent_type() {
 get_disallowed_tools() {
     local role="$1"
     case "$role" in
-        designer|researcher)
+        researcher)
             echo "Write, Edit, Bash"
             ;;
         *)
@@ -60,6 +60,27 @@ generate_frontmatter() {
     fi
 
     echo "---"
+}
+
+# 有効ロールのマッピング表を動的生成
+generate_role_mapping_table() {
+    local config_file="$1"
+    local table="| ロール | subagent_type | model | plugins |
+|--------|---------------|-------|---------|"
+    local roles
+    roles=$(get_enabled_roles "$config_file")
+    for role in $roles; do
+        local st
+        st=$(get_subagent_type "$role")
+        local model
+        model=$(get_role_model "$role" "$config_file")
+        local plugins
+        plugins=$(get_role_plugins "$role" "$config_file")
+        plugins="${plugins:--}"
+        table="$table
+| $role | $st | $model | $plugins |"
+    done
+    echo "$table"
 }
 
 # _base.md + role.md を結合してレンダリング
@@ -201,11 +222,12 @@ Task: subagent_type="general-purpose", team_name="<team>", name="tachikoma-1",
       prompt="<ロール指示書の内容>\n\nタスク: <具体的な作業内容>"
 ```
 
-### subagent_type マッピング
-| ロール | subagent_type |
-|--------|---------------|
-| developer, tester | general-purpose |
-| designer, researcher | Explore（Read-only） |
+### subagent_type・モデルマッピング
+{{ROLE_MAPPING_TABLE}}
+
+### プラグイン指定
+plugins 列にプラグイン名があるロールをspawnする際は、該当プラグインの SKILL.md を読んでプロンプトに含めてください。
+SKILL.md の場所: `~/.claude/plugins/cache/claude-plugins-official/<plugin-name>/*/skills/<plugin-name>/SKILL.md`
 
 ### 注意事項
 - _base.md の「ボスへの直接連絡禁止」はリードロールには適用されない（あなたがボスと話す）
@@ -233,6 +255,11 @@ ${lead_preamble}"
     combined=$(replace_placeholder "$combined" "AGENT_FILE_PATH" "$agent_file_path")
     combined=$(replace_placeholder "$combined" "DOMAIN_KNOWLEDGE_PATH" "$domain_knowledge_path")
     combined=$(replace_placeholder "$combined" "PROJECT_SPECIFIC_RULES" "$project_rules")
+
+    # マッピング表を動的生成して置換
+    local mapping_table
+    mapping_table=$(generate_role_mapping_table "$config_file")
+    combined=$(replace_placeholder "$combined" "ROLE_MAPPING_TABLE" "$mapping_table")
 
     echo "$combined"
 }
