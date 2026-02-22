@@ -85,6 +85,9 @@ case "$MODE" in
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR/.."
 PROMPT=$(cat "$SCRIPT_DIR/.session-prompt.md")
+# CLAUDECODE env var causes "nested session" error in Claude Code >= 2.1.x
+# Unset it so claude can start even when invoked from within a Claude session
+unset CLAUDECODE
 exec claude --append-system-prompt "$PROMPT"
 LAUNCHER_EOF
         chmod +x "$LAUNCHER"
